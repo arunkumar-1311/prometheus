@@ -1,0 +1,24 @@
+# For running Prometheus WITHOUT Docker (binary on the same machine as the app).
+# Start it from this folder:  prometheus --config.file=prometheus.yml
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - ../alerts.yml # relative to this file
+
+# Send firing alerts to a local Alertmanager (default port 9093).
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["localhost:9093"]
+
+scrape_configs:
+  - job_name: pprof-demo
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["localhost:8080"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

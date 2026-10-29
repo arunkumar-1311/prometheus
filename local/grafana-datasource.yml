@@ -1,0 +1,10 @@
+# Copy into <grafana>/conf/provisioning/datasources/ then restart Grafana.
+# The uid must stay "prometheus": the dashboard JSON refers to it.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://localhost:9090
+    isDefault: true

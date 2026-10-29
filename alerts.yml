@@ -1,0 +1,52 @@
+# Thresholds are tuned so the demo endpoints trigger them with a few hundred
+# requests (see README section 5). Raise them for a real service.
+groups:
+  - name: pprof-demo
+    rules:
+      - alert: AppDown
+        expr: up{job="pprof-demo"} == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: pprof-demo is not reachable
+          description: Prometheus cannot scrape {{ $labels.instance }}. Is the app running on that port?
+
+      - alert: GoroutineLeak
+        # /api/goroutine leaks one goroutine per request.
+        expr: go_goroutines{job="pprof-demo"} > 100 and deriv(go_goroutines{job="pprof-demo"}[2m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Goroutine count is high and still rising ({{ $value }})
+          description: "Take a profile: curl localhost:6060/debug/pprof/goroutine?debug=1"
+
+      - alert: HeapGrowing
+        # /api/leak retains 256 KiB per request.
+        expr: deriv(go_memstats_heap_inuse_bytes{job="pprof-demo"}[2m]) > 1e5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Heap in use is growing by {{ $value | humanize1024 }}B/s
+          description: "Take two heap profiles a minute apart and diff them (scripts/leak-diff.sh)."
+
+      - alert: HighLatencyP95
+        expr: histogram_quantile(0.95, sum by (le) (rate(pprofdemo_http_request_duration_seconds_bucket[1m]))) > 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: p95 latency is {{ $value | humanizeDuration }}
+          description: "Take a CPU profile: go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30"
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(pprofdemo_http_requests_total{code=~"5.."}[1m]))
+            / sum(rate(pprofdemo_http_requests_total[1m])) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: More than 5% of requests return 5xx

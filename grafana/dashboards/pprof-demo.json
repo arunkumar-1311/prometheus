@@ -1,0 +1,115 @@
+{
+  "uid": "pprof-demo",
+  "title": "pprof-demo",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Request rate by route (req/s)",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [{ "refId": "A", "legendFormat": "{{route}} {{code}}",
+        "expr": "sum by (route, code) (rate(pprofdemo_http_requests_total[1m]))" }]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Latency p50 / p95 / p99",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "legendFormat": "p50", "expr": "histogram_quantile(0.50, sum by (le) (rate(pprofdemo_http_request_duration_seconds_bucket[1m])))" },
+        { "refId": "B", "legendFormat": "p95", "expr": "histogram_quantile(0.95, sum by (le) (rate(pprofdemo_http_request_duration_seconds_bucket[1m])))" },
+        { "refId": "C", "legendFormat": "p99", "expr": "histogram_quantile(0.99, sum by (le) (rate(pprofdemo_http_request_duration_seconds_bucket[1m])))" }
+      ]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "p95 latency by route",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [{ "refId": "A", "legendFormat": "{{route}}",
+        "expr": "histogram_quantile(0.95, sum by (le, route) (rate(pprofdemo_http_request_duration_seconds_bucket[1m])))" }]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "In-flight requests",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "legendFormat": "in flight", "expr": "pprofdemo_http_requests_in_flight" }]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Goroutines (/api/goroutine leak)",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "legendFormat": "goroutines", "expr": "go_goroutines{job=\"pprof-demo\"}" }]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Heap in use (/api/leak)",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "legendFormat": "heap in use", "expr": "go_memstats_heap_inuse_bytes{job=\"pprof-demo\"}" },
+        { "refId": "B", "legendFormat": "heap alloc", "expr": "go_memstats_alloc_bytes{job=\"pprof-demo\"}" }
+      ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Allocation rate (/api/alloc)",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+      "targets": [{ "refId": "A", "legendFormat": "bytes allocated/s", "expr": "rate(go_memstats_alloc_bytes_total{job=\"pprof-demo\"}[1m])" }]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "GC pause & CPU",
+      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "legendFormat": "process CPU (cores)", "expr": "rate(process_cpu_seconds_total{job=\"pprof-demo\"}[1m])" },
+        { "refId": "B", "legendFormat": "GC pause seconds/s", "expr": "rate(go_gc_duration_seconds_sum{job=\"pprof-demo\"}[1m])" }
+      ]
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "5xx error ratio",
+      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0 }, "overrides": [] },
+      "targets": [{ "refId": "A", "legendFormat": "5xx / all",
+        "expr": "sum(rate(pprofdemo_http_requests_total{code=~\"5..\"}[1m])) / sum(rate(pprofdemo_http_requests_total[1m]))" }]
+    },
+    {
+      "id": 10, "type": "stat", "title": "Target up",
+      "gridPos": { "x": 12, "y": 32, "w": 6, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "mappings": [{ "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }],
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+      }, "overrides": [] },
+      "options": { "colorMode": "background" },
+      "targets": [{ "refId": "A", "expr": "up{job=\"pprof-demo\"}" }]
+    },
+    {
+      "id": 11, "type": "stat", "title": "Uptime",
+      "gridPos": { "x": 18, "y": 32, "w": 6, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [{ "refId": "A", "expr": "time() - process_start_time_seconds{job=\"pprof-demo\"}" }]
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "Items CRUD operations/s (by operation, result)",
+      "gridPos": { "x": 0, "y": 40, "w": 16, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "targets": [{ "refId": "A", "legendFormat": "{{operation}} / {{result}}",
+        "expr": "sum by (operation, result) (rate(pprofdemo_item_operations_total[1m])) > 0" }]
+    },
+    {
+      "id": 13, "type": "timeseries", "title": "Items stored",
+      "gridPos": { "x": 16, "y": 40, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "legendFormat": "items", "expr": "pprofdemo_items_stored" }]
+    }
+  ]
+}

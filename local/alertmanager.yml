@@ -1,0 +1,38 @@
+# Alertmanager routing for the no-Docker setup (same as docker/alertmanager.yml,
+# but the webhook is on localhost).
+# Start:  alertmanager --config.file=alertmanager.yml     (from prometheus/local)
+global:
+  resolve_timeout: 1m
+
+route:
+  receiver: default
+  group_by: [alertname, job]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+  routes:
+    - matchers: [severity="critical"]
+      receiver: critical
+      group_wait: 5s
+      repeat_interval: 15m
+    - matchers: [severity="warning"]
+      receiver: warning
+
+inhibit_rules:
+  - source_matchers: [severity="critical"]
+    target_matchers: [severity="warning"]
+    equal: [job]
+
+receivers:
+  - name: default
+    webhook_configs:
+      - url: http://localhost:5001/default
+        send_resolved: true
+  - name: critical
+    webhook_configs:
+      - url: http://localhost:5001/critical
+        send_resolved: true
+  - name: warning
+    webhook_configs:
+      - url: http://localhost:5001/warning
+        send_resolved: true
